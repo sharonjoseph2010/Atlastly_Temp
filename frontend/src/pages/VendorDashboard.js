@@ -75,30 +75,26 @@ export default function VendorDashboard() {
     if (!mapRef.current || !GOOGLE_MAPS_API_KEY) return;
 
     try {
-      const loader = new APILoader({
+      // Set API options
+      setOptions({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      await loader.load();
+      // Import maps library
+      const { Map } = await importLibrary('maps');
+      const { Marker } = await importLibrary('marker');
       
-      const map = new google.maps.Map(mapRef.current, {
+      const map = new Map(mapRef.current, {
         center: { lat: formData.latitude, lng: formData.longitude },
         zoom: 13,
+        mapId: 'VENDOR_MAP',
       });
 
-      const marker = new google.maps.Marker({
+      const marker = new Marker({
         position: { lat: formData.latitude, lng: formData.longitude },
         map,
         draggable: true,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 15,
-          fillColor: '#FFDC00',
-          fillOpacity: 1,
-          strokeColor: '#001F3F',
-          strokeWeight: 3,
-        },
       });
 
       marker.addListener('dragend', (e) => {
