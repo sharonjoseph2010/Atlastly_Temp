@@ -464,6 +464,36 @@ export default function VendorDashboard() {
               {saving ? 'Saving...' : hasProfile ? 'Update Profile' : 'Create Profile'}
             </button>
           </form>
+
+          {/* Preview Button */}
+          {hasProfile && GOOGLE_MAPS_API_KEY && (
+            <div className="mt-6">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 rounded-full font-bold text-lg transition-transform active:scale-95 focus:ring-4 focus:ring-secondary flex items-center justify-center gap-2"
+                data-testid="preview-button"
+              >
+                <Map className="w-5 h-5" strokeWidth={2} />
+                {showPreview ? 'Hide Preview' : 'Preview How Planners See You'}
+              </button>
+
+              {showPreview && (
+                <div className="mt-6 bg-surface border-2 border-border rounded-lg p-6 shadow-hard">
+                  <h3 className="text-xl font-bold text-primary mb-3">
+                    Planner View Preview
+                  </h3>
+                  <p className="text-base text-primary mb-4">
+                    This is how your business appears to event planners on the discovery map. Your marker is highlighted in yellow.
+                  </p>
+                  <div 
+                    ref={previewMapRef} 
+                    className="w-full h-96 border-2 border-border rounded-lg"
+                    data-testid="preview-map"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
