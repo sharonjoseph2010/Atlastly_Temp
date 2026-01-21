@@ -13,12 +13,15 @@ export default function VendorDashboard() {
   const mapRef = useRef(null);
   const googleMapRef = useRef(null);
   const markerRef = useRef(null);
+  const previewMapRef = useRef(null);
+  const previewGoogleMapRef = useRef(null);
   
   const [hasProfile, setHasProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [categories, setCategories] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
   
   const [formData, setFormData] = useState({
     business_name: '',
