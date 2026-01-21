@@ -152,12 +152,12 @@ export default function VendorDashboard() {
     if (!previewMapRef.current || !GOOGLE_MAPS_API_KEY || !hasProfile) return;
 
     try {
-      const loader = new Loader({
+      const loader = new APILoader({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      const google = await loader.load();
+      await loader.load();
       
       // Get all vendors to show on preview
       const vendorsRes = await discoveryAPI.getVendors();
