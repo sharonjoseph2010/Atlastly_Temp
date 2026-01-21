@@ -75,12 +75,12 @@ export default function VendorDashboard() {
     if (!mapRef.current || !GOOGLE_MAPS_API_KEY) return;
 
     try {
-      const loader = new Loader({
+      const loader = new APILoader({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      const google = await loader.load();
+      await loader.load();
       
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: formData.latitude, lng: formData.longitude },
