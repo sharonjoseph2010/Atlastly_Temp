@@ -105,43 +105,42 @@ export default function PlannerDashboard() {
     }
   };
 
-  const updateMapMarkers = () => {
-    if (!googleMapRef.current || !window.google) return;
+  const updateMapMarkers = async () => {
+    if (!googleMapRef.current) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
+    try {
+      const { Marker } = await importLibrary('marker');
 
-    // Add new markers
-    filteredVendors.forEach(vendor => {
-      const marker = new window.google.maps.Marker({
-        position: { lat: vendor.latitude, lng: vendor.longitude },
-        map: googleMapRef.current,
-        title: vendor.business_name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 12,
-          fillColor: '#001F3F',
-          fillOpacity: 1,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 3,
-        },
-      });
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.map = null);
+      markersRef.current = [];
 
-      marker.addListener('click', () => {
-        setSelectedVendor(vendor);
-      });
-
-      markersRef.current.push(marker);
-    });
-
-    // Fit bounds to show all markers
-    if (filteredVendors.length > 0) {
-      const bounds = new window.google.maps.LatLngBounds();
+      // Add new markers
       filteredVendors.forEach(vendor => {
-        bounds.extend({ lat: vendor.latitude, lng: vendor.longitude });
+        const marker = new Marker({
+          position: { lat: vendor.latitude, lng: vendor.longitude },
+          map: googleMapRef.current,
+          title: vendor.business_name,
+        });
+
+        marker.addListener('click', () => {
+          setSelectedVendor(vendor);
+        });
+
+        markersRef.current.push(marker);
       });
-      googleMapRef.current.fitBounds(bounds);
+
+      // Fit bounds to show all markers
+      if (filteredVendors.length > 0) {
+        const { LatLngBounds } = await importLibrary('core');
+        const bounds = new LatLngBounds();
+        filteredVendors.forEach(vendor => {
+          bounds.extend({ lat: vendor.latitude, lng: vendor.longitude });
+        });
+        googleMapRef.current.fitBounds(bounds);
+      }
+    } catch (error) {
+      console.error('Error updating markers:', error);
     }
   };
 
