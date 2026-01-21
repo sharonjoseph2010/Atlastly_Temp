@@ -411,11 +411,51 @@ export default function VendorDashboard() {
                 <MapPin className="w-6 h-6" strokeWidth={2} />
                 Pin Your Location *
               </label>
+              
+              {/* Lat/Lng Input Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label htmlFor="latitude" className="block text-base font-bold mb-2 text-primary">
+                    Latitude
+                  </label>
+                  <input
+                    id="latitude"
+                    name="latitude"
+                    type="number"
+                    step="any"
+                    value={formData.latitude}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="latitude-input"
+                  />
+                  <p className="text-sm text-primary/70 mt-1">Example: 19.0760</p>
+                </div>
+                
+                <div>
+                  <label htmlFor="longitude" className="block text-base font-bold mb-2 text-primary">
+                    Longitude
+                  </label>
+                  <input
+                    id="longitude"
+                    name="longitude"
+                    type="number"
+                    step="any"
+                    value={formData.longitude}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="longitude-input"
+                  />
+                  <p className="text-sm text-primary/70 mt-1">Example: 72.8777</p>
+                </div>
+              </div>
+              
               {GOOGLE_MAPS_API_KEY ? (
                 <div>
                   <div ref={mapRef} className="w-full h-96 border-2 border-border rounded-lg" data-testid="vendor-map" />
                   <p className="text-sm text-primary/70 mt-2">
-                    Drag the marker to set your exact location
+                    Drag the marker on the map OR enter coordinates above to set your exact location
                   </p>
                 </div>
               ) : (
