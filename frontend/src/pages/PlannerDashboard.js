@@ -77,12 +77,12 @@ export default function PlannerDashboard() {
     }
 
     try {
-      const loader = new Loader({
+      const loader = new APILoader({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      const google = await loader.load();
+      await loader.load();
       
       // Default center (will adjust based on vendors)
       const center = vendors.length > 0 
