@@ -50,6 +50,15 @@ export default function VendorDashboard() {
     }
   }, [loading]);
 
+  // Update marker position when lat/lng changes
+  useEffect(() => {
+    if (markerRef.current && googleMapRef.current) {
+      const newPosition = { lat: formData.latitude, lng: formData.longitude };
+      markerRef.current.position = newPosition;
+      googleMapRef.current.setCenter(newPosition);
+    }
+  }, [formData.latitude, formData.longitude]);
+
   const loadData = async () => {
     try {
       const categoriesRes = await discoveryAPI.getCategories();
