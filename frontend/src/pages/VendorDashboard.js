@@ -148,12 +148,15 @@ export default function VendorDashboard() {
     if (!previewMapRef.current || !GOOGLE_MAPS_API_KEY || !hasProfile) return;
 
     try {
-      const loader = new APILoader({
+      // Set API options
+      setOptions({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      await loader.load();
+      // Import maps library
+      const { Map } = await importLibrary('maps');
+      const { Marker, InfoWindow } = await importLibrary('marker');
       
       // Get all vendors to show on preview
       const vendorsRes = await discoveryAPI.getVendors();
@@ -161,37 +164,23 @@ export default function VendorDashboard() {
 
       const center = { lat: formData.latitude, lng: formData.longitude };
       
-      const map = new google.maps.Map(previewMapRef.current, {
+      const map = new Map(previewMapRef.current, {
         center,
         zoom: 12,
-        styles: [
-          {
-            featureType: 'poi',
-            elementType: 'labels',
-            stylers: [{ visibility: 'off' }],
-          },
-        ],
+        mapId: 'PREVIEW_MAP',
       });
 
       // Add markers for all vendors (including current vendor)
       allVendors.forEach(vendor => {
         const isCurrentVendor = vendor.vendor_id === user.userId;
         
-        const marker = new google.maps.Marker({
+        const marker = new Marker({
           position: { lat: vendor.latitude, lng: vendor.longitude },
           map,
           title: vendor.business_name,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: isCurrentVendor ? 15 : 12,
-            fillColor: isCurrentVendor ? '#FFDC00' : '#001F3F',
-            fillOpacity: 1,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 3,
-          },
         });
 
-        const infoWindow = new google.maps.InfoWindow({
+        const infoWindow = new InfoWindow({
           content: `
             <div style="padding: 8px; max-width: 250px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #001F3F;">
@@ -210,7 +199,8 @@ export default function VendorDashboard() {
 
       // Fit bounds to show all vendors
       if (allVendors.length > 0) {
-        const bounds = new google.maps.LatLngBounds();
+        const { LatLngBounds } = await importLibrary('core');
+        const bounds = new LatLngBounds();
         allVendors.forEach(vendor => {
           bounds.extend({ lat: vendor.latitude, lng: vendor.longitude });
         });
