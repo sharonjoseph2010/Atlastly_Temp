@@ -148,6 +148,91 @@ export default function VendorDashboard() {
     }
   };
 
+  const loadPreviewMap = async () => {
+    if (!previewMapRef.current || !GOOGLE_MAPS_API_KEY || !hasProfile) return;
+
+    try {
+      const loader = new Loader({
+        apiKey: GOOGLE_MAPS_API_KEY,
+        version: 'weekly',
+      });
+
+      const google = await loader.load();
+      
+      // Get all vendors to show on preview
+      const vendorsRes = await discoveryAPI.getVendors();
+      const allVendors = vendorsRes.data;
+
+      const center = { lat: formData.latitude, lng: formData.longitude };
+      
+      const map = new google.maps.Map(previewMapRef.current, {
+        center,
+        zoom: 12,
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }],
+          },
+        ],
+      });
+
+      // Add markers for all vendors (including current vendor)
+      allVendors.forEach(vendor => {
+        const isCurrentVendor = vendor.vendor_id === user.userId;
+        
+        const marker = new google.maps.Marker({
+          position: { lat: vendor.latitude, lng: vendor.longitude },
+          map,
+          title: vendor.business_name,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: isCurrentVendor ? 15 : 12,
+            fillColor: isCurrentVendor ? '#FFDC00' : '#001F3F',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 3,
+          },
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: `
+            <div style="padding: 8px; max-width: 250px;">
+              <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #001F3F;">
+                ${vendor.business_name} ${isCurrentVendor ? '(You)' : ''}
+              </h3>
+              <p style="margin: 4px 0; color: #FFDC00; font-weight: 600;">${vendor.category}</p>
+              <p style="margin: 4px 0; color: #001F3F;">${vendor.description}</p>
+            </div>
+          `
+        });
+
+        marker.addListener('click', () => {
+          infoWindow.open(map, marker);
+        });
+      });
+
+      // Fit bounds to show all vendors
+      if (allVendors.length > 0) {
+        const bounds = new google.maps.LatLngBounds();
+        allVendors.forEach(vendor => {
+          bounds.extend({ lat: vendor.latitude, lng: vendor.longitude });
+        });
+        map.fitBounds(bounds);
+      }
+
+      previewGoogleMapRef.current = map;
+    } catch (error) {
+      console.error('Error loading preview map:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (showPreview && hasProfile) {
+      setTimeout(() => loadPreviewMap(), 100);
+    }
+  }, [showPreview, hasProfile]);
+
   const handleLogout = () => {
     logout();
     navigate('/');
