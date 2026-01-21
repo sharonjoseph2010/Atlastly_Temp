@@ -77,28 +77,24 @@ export default function PlannerDashboard() {
     }
 
     try {
-      const loader = new APILoader({
+      // Set API options
+      setOptions({
         apiKey: GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      await loader.load();
+      // Import maps library
+      const { Map } = await importLibrary('maps');
       
       // Default center (will adjust based on vendors)
       const center = vendors.length > 0 
         ? { lat: vendors[0].latitude, lng: vendors[0].longitude }
         : { lat: 28.6139, lng: 77.2090 }; // Default to Delhi
 
-      const map = new google.maps.Map(mapRef.current, {
+      const map = new Map(mapRef.current, {
         center,
         zoom: 12,
-        styles: [
-          {
-            featureType: 'poi',
-            elementType: 'labels',
-            stylers: [{ visibility: 'off' }],
-          },
-        ],
+        mapId: 'PLANNER_MAP',
       });
 
       googleMapRef.current = map;
