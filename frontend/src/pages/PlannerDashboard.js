@@ -153,39 +153,47 @@ export default function PlannerDashboard() {
 
   const handleLocationSearch = async (e) => {
     e.preventDefault();
-    if (!searchLocation.trim() || !googleMapRef.current) return;
+    if (!searchLocation.trim()) return;
 
     setIsSearching(true);
 
     try {
-      // Use Google Geocoding to find location
-      setOptions({
-        apiKey: GOOGLE_MAPS_API_KEY,
-        version: 'weekly',
-      });
-
-      const { Geocoder } = await importLibrary('geocoding');
-      const geocoder = new Geocoder();
-
-      const result = await geocoder.geocode({ address: searchLocation });
+      // Simple city-based filtering - no Geocoding API needed
+      const searchTerm = searchLocation.toLowerCase().trim();
       
-      if (result.results && result.results.length > 0) {
-        const location = result.results[0].geometry.location;
-        const center = { lat: location.lat(), lng: location.lng() };
+      // Filter vendors by city or address
+      const matchingVendors = vendors.filter(v => 
+        v.city.toLowerCase().includes(searchTerm) || 
+        v.address.toLowerCase().includes(searchTerm)
+      );
+      
+      if (matchingVendors.length > 0) {
+        // Update filtered vendors to show only matching ones
+        setFilteredVendors(matchingVendors);
         
-        // Update map center and zoom
-        googleMapRef.current.setCenter(center);
-        googleMapRef.current.setZoom(13);
-        
-        setSearchedCenter(center);
+        // Zoom map to first matching vendor's location
+        const firstVendor = matchingVendors[0];
+        if (googleMapRef.current) {
+          const center = { lat: firstVendor.latitude, lng: firstVendor.longitude };
+          googleMapRef.current.setCenter(center);
+          googleMapRef.current.setZoom(13);
+        }
       } else {
-        alert('Location not found. Please try a different search term.');
+        alert(`No vendors found in "${searchLocation}". Try searching for: Mumbai, Delhi, Ernakulam, or New Delhi.`);
       }
     } catch (error) {
       console.error('Error searching location:', error);
       alert('Error searching for location. Please try again.');
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const clearLocationSearch = () => {
+    setSearchLocation('');
+    setFilteredVendors(vendors);
+    if (selectedCategory !== 'all') {
+      setFilteredVendors(vendors.filter(v => v.category === selectedCategory));
     }
   };
 
