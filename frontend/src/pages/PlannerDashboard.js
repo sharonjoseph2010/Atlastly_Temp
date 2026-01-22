@@ -151,6 +151,44 @@ export default function PlannerDashboard() {
     navigate('/');
   };
 
+  const handleLocationSearch = async (e) => {
+    e.preventDefault();
+    if (!searchLocation.trim() || !googleMapRef.current) return;
+
+    setIsSearching(true);
+
+    try {
+      // Use Google Geocoding to find location
+      setOptions({
+        apiKey: GOOGLE_MAPS_API_KEY,
+        version: 'weekly',
+      });
+
+      const { Geocoder } = await importLibrary('geocoding');
+      const geocoder = new Geocoder();
+
+      const result = await geocoder.geocode({ address: searchLocation });
+      
+      if (result.results && result.results.length > 0) {
+        const location = result.results[0].geometry.location;
+        const center = { lat: location.lat(), lng: location.lng() };
+        
+        // Update map center and zoom
+        googleMapRef.current.setCenter(center);
+        googleMapRef.current.setZoom(13);
+        
+        setSearchedCenter(center);
+      } else {
+        alert('Location not found. Please try a different search term.');
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+      alert('Error searching for location. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
