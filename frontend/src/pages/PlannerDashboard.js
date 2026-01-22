@@ -246,14 +246,26 @@ export default function PlannerDashboard() {
               Search Location
             </label>
             <form onSubmit={handleLocationSearch} className="space-y-3">
-              <input
-                type="text"
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
-                placeholder="Enter city or area (e.g., Ernakulam)"
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary placeholder:text-gray-500"
-                data-testid="location-search-input"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  placeholder="Enter city or area (e.g., Ernakulam)"
+                  className="w-full h-12 border-2 border-border rounded-md px-4 pr-10 text-base focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary placeholder:text-gray-500"
+                  data-testid="location-search-input"
+                />
+                {searchLocation && (
+                  <button
+                    type="button"
+                    onClick={clearLocationSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-primary hover:text-primary/70"
+                    data-testid="clear-search"
+                  >
+                    <X className="w-5 h-5" strokeWidth={2} />
+                  </button>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={isSearching || !searchLocation.trim()}
@@ -264,6 +276,9 @@ export default function PlannerDashboard() {
                 {isSearching ? 'Searching...' : 'Search Location'}
               </button>
             </form>
+            <p className="text-sm text-primary/70 mt-2">
+              Search filters vendors by city name
+            </p>
           </div>
 
           {/* Category Filter */}
