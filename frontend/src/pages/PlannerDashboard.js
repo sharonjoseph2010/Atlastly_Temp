@@ -41,9 +41,24 @@ export default function PlannerDashboard() {
 
   useEffect(() => {
     if (selectedCategory === 'all') {
+      if (searchLocation.trim()) {
+        // If there's a search, keep the filtered results
+        return;
+      }
       setFilteredVendors(vendors);
     } else {
-      setFilteredVendors(vendors.filter(v => v.category === selectedCategory));
+      const filtered = vendors.filter(v => v.category === selectedCategory);
+      // If searching, further filter by location
+      if (searchLocation.trim()) {
+        const searchTerm = searchLocation.toLowerCase().trim();
+        const locationFiltered = filtered.filter(v => 
+          v.city.toLowerCase().includes(searchTerm) || 
+          v.address.toLowerCase().includes(searchTerm)
+        );
+        setFilteredVendors(locationFiltered);
+      } else {
+        setFilteredVendors(filtered);
+      }
     }
   }, [selectedCategory, vendors]);
 
