@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { discoveryAPI } from '../utils/api';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
-import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Navigation } from 'lucide-react';
+import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Navigation, Search } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
 
