@@ -22,6 +22,8 @@ export default function PlannerDashboard() {
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [searchLocation, setSearchLocation] = useState('');
+  const [searchedCenter, setSearchedCenter] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'planner') {
