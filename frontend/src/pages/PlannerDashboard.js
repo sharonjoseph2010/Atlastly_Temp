@@ -216,6 +216,33 @@ export default function PlannerDashboard() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Sidebar */}
         <aside className="w-full md:w-80 bg-surface border-r-2 border-border overflow-y-auto p-6">
+          {/* Location Search */}
+          <div className="mb-6">
+            <label className="block text-lg font-bold mb-3 text-primary flex items-center gap-2">
+              <Search className="w-6 h-6" strokeWidth={2} />
+              Search Location
+            </label>
+            <form onSubmit={handleLocationSearch} className="space-y-3">
+              <input
+                type="text"
+                value={searchLocation}
+                onChange={(e) => setSearchLocation(e.target.value)}
+                placeholder="Enter city or area (e.g., Ernakulam)"
+                className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary placeholder:text-gray-500"
+                data-testid="location-search-input"
+              />
+              <button
+                type="submit"
+                disabled={isSearching || !searchLocation.trim()}
+                className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-6 rounded-full font-bold text-base border-2 border-primary transition-transform active:scale-95 focus:ring-4 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                data-testid="search-location-button"
+              >
+                <MapPin className="w-5 h-5" strokeWidth={2} />
+                {isSearching ? 'Searching...' : 'Search Location'}
+              </button>
+            </form>
+          </div>
+
           {/* Category Filter */}
           <div className="mb-6">
             <label className="block text-lg font-bold mb-3 text-primary flex items-center gap-2">
