@@ -124,47 +124,6 @@ export default function PlannerDashboard() {
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
   }, []);
-      longitude: vendor.longitude,
-      latitude: vendor.latitude + 0.02,
-      zoom: Math.max(viewState.zoom, 12)
-    });
-  };
-
-  const handleLocationSearch = (e) => {
-    e.preventDefault();
-    if (!searchLocation.trim()) return;
-
-    const searchTerm = searchLocation.toLowerCase().trim();
-    const matchingVendors = vendors.filter(v => 
-      v.city.toLowerCase().includes(searchTerm) || 
-      v.address.toLowerCase().includes(searchTerm)
-    );
-    
-    if (matchingVendors.length > 0) {
-      setFilteredVendors(matchingVendors);
-      const firstVendor = matchingVendors[0];
-      setViewState({
-        longitude: firstVendor.longitude,
-        latitude: firstVendor.latitude,
-        zoom: 12
-      });
-    } else {
-      alert(`No vendors found in "${searchLocation}".`);
-    }
-  };
-
-  const clearLocationSearch = () => {
-    setSearchLocation('');
-    setFilteredVendors(vendors);
-    if (selectedCategory !== 'all') {
-      setFilteredVendors(vendors.filter(v => v.category === selectedCategory));
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   if (loading) {
     return (
