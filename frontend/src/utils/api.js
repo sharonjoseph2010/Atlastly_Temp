@@ -46,8 +46,18 @@ export const adminAPI = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   
+  createVendor: (data, token) =>
+    api.post('/admin/vendors', data, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  
   updateVendor: (vendorId, data, token) =>
     api.put(`/admin/vendors/${vendorId}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  
+  fullUpdateVendor: (vendorId, data, token) =>
+    api.put(`/admin/vendors/${vendorId}/full`, data, {
       headers: { Authorization: `Bearer ${token}` },
     }),
   
