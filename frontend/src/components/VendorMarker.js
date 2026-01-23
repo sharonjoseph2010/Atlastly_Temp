@@ -100,6 +100,8 @@ const VendorMarker = React.memo(({ vendor, state = 'confirmed', onClick, isSelec
       )}
     </div>
   );
-};
+});
+
+VendorMarker.displayName = 'VendorMarker';
 
 export default VendorMarker;
