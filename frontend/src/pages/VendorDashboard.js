@@ -145,11 +145,12 @@ export default function VendorDashboard() {
       {/* Full Screen Map */}
       <Map
         {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
+        onMove={onMove}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAPBOX_STYLE}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
+        reuseMaps
       >
         {/* Vendor Location Marker - Draggable */}
         <Marker
