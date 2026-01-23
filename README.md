@@ -1,4 +1,6 @@
-# Event Services Discovery Platform
+# Atlastly
+
+**What your event needs, right here**
 
 An accessible, map-based platform where event planners discover nearby service providers, and vendors list themselves to be discovered — without intermediaries.
 
