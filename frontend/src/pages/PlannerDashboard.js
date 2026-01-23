@@ -170,7 +170,7 @@ export default function PlannerDashboard() {
             <div className="flex items-center justify-between gap-4">
               {/* Logo/Title */}
               <h1 className="text-xl md:text-2xl font-black text-primary whitespace-nowrap">
-                Event Services
+                Atlastly
               </h1>
 
               {/* Search Bar - Desktop */}
