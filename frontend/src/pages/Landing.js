@@ -12,10 +12,12 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-none text-primary mb-6">
-            Find Event Services
-            <br />
-            Near You
+            Atlastly
           </h1>
+          
+          <p className="text-2xl md:text-3xl font-bold text-secondary mb-4">
+            What your event needs, right here
+          </p>
           
           <p className="text-lg md:text-xl leading-relaxed text-primary mb-12 max-w-2xl">
             A simple platform to discover local event service providers. Vendors list themselves. Planners find them by location. No middlemen.
