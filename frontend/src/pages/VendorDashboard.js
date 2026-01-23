@@ -1,27 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { vendorAPI, discoveryAPI } from '../utils/api';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
-import { LogOut, MapPin, Eye, EyeOff, Save, AlertCircle, CheckCircle, Map } from 'lucide-react';
+import { Map, Marker } from 'react-map-gl';
+import VendorMarker from '../components/VendorMarker';
+import { LogOut, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const mapRef = useRef(null);
-  const googleMapRef = useRef(null);
-  const markerRef = useRef(null);
-  const previewMapRef = useRef(null);
-  const previewGoogleMapRef = useRef(null);
   
   const [hasProfile, setHasProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [categories, setCategories] = useState([]);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   
   const [formData, setFormData] = useState({
     business_name: '',
@@ -36,6 +33,12 @@ export default function VendorDashboard() {
     is_active: true,
   });
 
+  const [viewState, setViewState] = useState({
+    longitude: 77.2090,
+    latitude: 28.6139,
+    zoom: 12
+  });
+
   useEffect(() => {
     if (user?.role !== 'vendor') {
       navigate('/');
@@ -43,21 +46,6 @@ export default function VendorDashboard() {
     }
     loadData();
   }, [user, navigate]);
-
-  useEffect(() => {
-    if (!loading) {
-      initializeMap();
-    }
-  }, [loading]);
-
-  // Update marker position when lat/lng changes
-  useEffect(() => {
-    if (markerRef.current && googleMapRef.current) {
-      const newPosition = { lat: formData.latitude, lng: formData.longitude };
-      markerRef.current.position = newPosition;
-      googleMapRef.current.setCenter(newPosition);
-    }
-  }, [formData.latitude, formData.longitude]);
 
   const loadData = async () => {
     try {
@@ -68,9 +56,15 @@ export default function VendorDashboard() {
         const profileRes = await vendorAPI.getProfile(user.token);
         setFormData(profileRes.data);
         setHasProfile(true);
+        setViewState({
+          longitude: profileRes.data.longitude,
+          latitude: profileRes.data.latitude,
+          zoom: 12
+        });
       } catch (err) {
         if (err.response?.status === 404) {
           setHasProfile(false);
+          setShowForm(true);
         }
       }
     } catch (error) {
@@ -80,45 +74,18 @@ export default function VendorDashboard() {
     }
   };
 
-  const initializeMap = async () => {
-    if (!mapRef.current || !GOOGLE_MAPS_API_KEY) return;
-
-    try {
-      // Set API options
-      setOptions({
-        apiKey: GOOGLE_MAPS_API_KEY,
-        version: 'weekly',
-      });
-
-      // Import maps library
-      const { Map } = await importLibrary('maps');
-      const { Marker } = await importLibrary('marker');
-      
-      const map = new Map(mapRef.current, {
-        center: { lat: formData.latitude, lng: formData.longitude },
-        zoom: 13,
-        mapId: 'VENDOR_MAP',
-      });
-
-      const marker = new Marker({
-        position: { lat: formData.latitude, lng: formData.longitude },
-        map,
-        draggable: true,
-      });
-
-      marker.addListener('dragend', (e) => {
-        setFormData(prev => ({
-          ...prev,
-          latitude: e.latLng.lat(),
-          longitude: e.latLng.lng(),
-        }));
-      });
-
-      googleMapRef.current = map;
-      markerRef.current = marker;
-    } catch (error) {
-      console.error('Error loading map:', error);
-    }
+  const handleMarkerDragEnd = (event) => {
+    const { lng, lat } = event.lngLat;
+    setFormData(prev => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+    }));
+    setViewState({
+      ...viewState,
+      longitude: lng,
+      latitude: lat,
+    });
   };
 
   const handleChange = (e) => {
@@ -143,6 +110,7 @@ export default function VendorDashboard() {
         setHasProfile(true);
         setMessage({ type: 'success', text: 'Profile created successfully!' });
       }
+      setShowForm(false);
     } catch (error) {
       setMessage({
         type: 'error',
@@ -152,81 +120,6 @@ export default function VendorDashboard() {
       setSaving(false);
     }
   };
-
-  const loadPreviewMap = async () => {
-    if (!previewMapRef.current || !GOOGLE_MAPS_API_KEY || !hasProfile) return;
-
-    try {
-      // Set API options
-      setOptions({
-        apiKey: GOOGLE_MAPS_API_KEY,
-        version: 'weekly',
-      });
-
-      // Import maps library
-      const { Map } = await importLibrary('maps');
-      const { Marker, InfoWindow } = await importLibrary('marker');
-      
-      // Get all vendors to show on preview
-      const vendorsRes = await discoveryAPI.getVendors();
-      const allVendors = vendorsRes.data;
-
-      const center = { lat: formData.latitude, lng: formData.longitude };
-      
-      const map = new Map(previewMapRef.current, {
-        center,
-        zoom: 12,
-        mapId: 'PREVIEW_MAP',
-      });
-
-      // Add markers for all vendors (including current vendor)
-      allVendors.forEach(vendor => {
-        const isCurrentVendor = vendor.vendor_id === user.userId;
-        
-        const marker = new Marker({
-          position: { lat: vendor.latitude, lng: vendor.longitude },
-          map,
-          title: vendor.business_name,
-        });
-
-        const infoWindow = new InfoWindow({
-          content: `
-            <div style="padding: 8px; max-width: 250px;">
-              <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #001F3F;">
-                ${vendor.business_name} ${isCurrentVendor ? '(You)' : ''}
-              </h3>
-              <p style="margin: 4px 0; color: #FFDC00; font-weight: 600;">${vendor.category}</p>
-              <p style="margin: 4px 0; color: #001F3F;">${vendor.description}</p>
-            </div>
-          `
-        });
-
-        marker.addListener('click', () => {
-          infoWindow.open(map, marker);
-        });
-      });
-
-      // Fit bounds to show all vendors
-      if (allVendors.length > 0) {
-        const { LatLngBounds } = await importLibrary('core');
-        const bounds = new LatLngBounds();
-        allVendors.forEach(vendor => {
-          bounds.extend({ lat: vendor.latitude, lng: vendor.longitude });
-        });
-        map.fitBounds(bounds);
-      }
-
-      previewGoogleMapRef.current = map;
-    } catch (error) {
-      console.error('Error loading preview map:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (showPreview && hasProfile) {
-      setTimeout(() => loadPreviewMap(), 100);
-    }
-  }, [showPreview, hasProfile]);
 
   const handleLogout = () => {
     logout();
@@ -242,295 +135,255 @@ export default function VendorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-surface border-b-2 border-border px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary">Vendor Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 rounded-full font-bold transition-transform active:scale-95"
-          data-testid="logout-button"
+    <div className="relative w-screen h-screen overflow-hidden">
+      {/* Full Screen Map */}
+      <Map
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        mapboxAccessToken={MAPBOX_TOKEN}
+        mapStyle={MAPBOX_STYLE}
+        style={{ width: '100%', height: '100%' }}
+        attributionControl={false}
+      >
+        {/* Vendor Location Marker - Draggable */}
+        <Marker
+          longitude={formData.longitude}
+          latitude={formData.latitude}
+          anchor="bottom"
+          draggable
+          onDragEnd={handleMarkerDragEnd}
         >
-          <LogOut className="w-5 h-5" strokeWidth={2} />
-          Logout
-        </button>
-      </header>
+          <VendorMarker
+            vendor={{
+              ...formData,
+              vendor_id: user?.userId || 'current',
+              category: formData.category || 'Venue'
+            }}
+            state="pending"
+            isSelected={true}
+          />
+        </Marker>
+      </Map>
 
-      {/* Main Content */}
-      <main className="px-6 md:px-12 py-8">
-        <div className="max-w-4xl mx-auto">
-          {message.text && (
-            <div
-              className={`mb-6 border-2 rounded-lg p-4 flex items-start gap-3 ${
-                message.type === 'success'
-                  ? 'bg-success/10 border-success'
-                  : 'bg-error/10 border-error'
-              }`}
-              data-testid="message-banner"
-            >
-              {message.type === 'success' ? (
-                <CheckCircle className="w-6 h-6 text-success flex-shrink-0 mt-0.5" strokeWidth={2} />
-              ) : (
-                <AlertCircle className="w-6 h-6 text-error flex-shrink-0 mt-0.5" strokeWidth={2} />
-              )}
-              <p className={`text-base font-medium ${
-                message.type === 'success' ? 'text-success' : 'text-error'
-              }`}>
-                {message.text}
-              </p>
-            </div>
-          )}
+      {/* Floating Header */}
+      <div className="absolute top-0 left-0 right-0 z-10 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-surface rounded-2xl shadow-2xl border-2 border-border p-4 floating-card">
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-xl md:text-2xl font-black text-primary">
+                {hasProfile ? 'Update Your Location' : 'Set Your Location'}
+              </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Business Name */}
-            <div>
-              <label htmlFor="business_name" className="block text-lg font-bold mb-2 text-primary">
-                Business Name *
-              </label>
-              <input
-                id="business_name"
-                name="business_name"
-                type="text"
-                value={formData.business_name}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                required
-                data-testid="business-name-input"
-              />
-            </div>
-
-            {/* Category */}
-            <div>
-              <label htmlFor="category" className="block text-lg font-bold mb-2 text-primary">
-                Service Category *
-              </label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                required
-                data-testid="category-select"
-              >
-                <option value="">Select a category</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* City */}
-            <div>
-              <label htmlFor="city" className="block text-lg font-bold mb-2 text-primary">
-                City *
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                value={formData.city}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                required
-                data-testid="city-input"
-              />
-            </div>
-
-            {/* Address */}
-            <div>
-              <label htmlFor="address" className="block text-lg font-bold mb-2 text-primary">
-                Address *
-              </label>
-              <input
-                id="address"
-                name="address"
-                type="text"
-                value={formData.address}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                required
-                data-testid="address-input"
-              />
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label htmlFor="phone" className="block text-lg font-bold mb-2 text-primary">
-                Phone Number *
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                required
-                data-testid="phone-input"
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-lg font-bold mb-2 text-primary">
-                Description *
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                className="w-full border-2 border-border rounded-md px-4 py-3 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary resize-none"
-                required
-                data-testid="description-input"
-              />
-            </div>
-
-            {/* External Link */}
-            <div>
-              <label htmlFor="external_link" className="block text-lg font-bold mb-2 text-primary">
-                Website (Optional)
-              </label>
-              <input
-                id="external_link"
-                name="external_link"
-                type="url"
-                value={formData.external_link}
-                onChange={handleChange}
-                className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                placeholder="https://"
-                data-testid="website-input"
-              />
-            </div>
-
-            {/* Map Location */}
-            <div>
-              <label className="block text-lg font-bold mb-2 text-primary flex items-center gap-2">
-                <MapPin className="w-6 h-6" strokeWidth={2} />
-                Pin Your Location *
-              </label>
-              
-              {/* Lat/Lng Input Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label htmlFor="latitude" className="block text-base font-bold mb-2 text-primary">
-                    Latitude
-                  </label>
-                  <input
-                    id="latitude"
-                    name="latitude"
-                    type="number"
-                    step="any"
-                    value={formData.latitude}
-                    onChange={handleChange}
-                    className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
-                    required
-                    data-testid="latitude-input"
-                  />
-                  <p className="text-sm text-primary/70 mt-1">Example: 19.0760</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowForm(!showForm)}
+                  className="flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-4 md:px-6 rounded-full font-bold border-2 border-primary transition-transform active:scale-95"
+                  data-testid="toggle-form"
+                >
+                  {showForm ? 'Hide' : 'Edit'} Details
+                </button>
                 
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-4 md:px-6 rounded-full font-bold transition-transform active:scale-95"
+                  data-testid="logout-button"
+                >
+                  <LogOut className="w-5 h-5" strokeWidth={2} />
+                  <span className="hidden md:inline">Logout</span>
+                </button>
+              </div>
+            </div>
+            
+            <p className="text-base text-primary mt-3">
+              Drag the marker on the map to set your business location
+            </p>
+            
+            {/* Coordinates Display */}
+            <div className="flex gap-4 mt-3 text-sm font-mono">
+              <span className="text-primary">Lat: {formData.latitude.toFixed(6)}</span>
+              <span className="text-primary">Lng: {formData.longitude.toFixed(6)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Message Banner */}
+      {message.text && (
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
+          <div
+            className={`border-2 rounded-lg p-4 flex items-start gap-3 floating-card slide-up ${
+              message.type === 'success'
+                ? 'bg-success/10 border-success'
+                : 'bg-error/10 border-error'
+            }`}
+            data-testid="message-banner"
+          >
+            {message.type === 'success' ? (
+              <CheckCircle className="w-6 h-6 text-success flex-shrink-0" strokeWidth={2} />
+            ) : (
+              <AlertCircle className="w-6 h-6 text-error flex-shrink-0" strokeWidth={2} />
+            )}
+            <p className={`text-base font-medium ${
+              message.type === 'success' ? 'text-success' : 'text-error'
+            }`}>
+              {message.text}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Details Form - Floating Bottom Sheet */}
+      {showForm && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 slide-up max-h-[70vh] overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 pb-4">
+            <div className="bg-surface rounded-t-3xl shadow-2xl border-2 border-border border-b-0 floating-card">
+              {/* Handle Bar */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1 bg-border rounded-full"></div>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <h2 className="text-2xl font-bold text-primary mb-4">Business Details</h2>
+
+                {/* Business Name */}
                 <div>
-                  <label htmlFor="longitude" className="block text-base font-bold mb-2 text-primary">
-                    Longitude
+                  <label htmlFor="business_name" className="block text-base font-bold mb-2 text-primary">
+                    Business Name *
                   </label>
                   <input
-                    id="longitude"
-                    name="longitude"
-                    type="number"
-                    step="any"
-                    value={formData.longitude}
+                    id="business_name"
+                    name="business_name"
+                    type="text"
+                    value={formData.business_name}
                     onChange={handleChange}
-                    className="w-full h-12 border-2 border-border rounded-md px-4 text-lg focus:border-primary focus:ring-4 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
                     required
-                    data-testid="longitude-input"
+                    data-testid="business-name-input"
                   />
-                  <p className="text-sm text-primary/70 mt-1">Example: 72.8777</p>
                 </div>
-              </div>
-              
-              {GOOGLE_MAPS_API_KEY ? (
+
+                {/* Category */}
                 <div>
-                  <div ref={mapRef} className="w-full h-96 border-2 border-border rounded-lg" data-testid="vendor-map" />
-                  <p className="text-sm text-primary/70 mt-2">
-                    Drag the marker on the map OR enter coordinates above to set your exact location
-                  </p>
+                  <label htmlFor="category" className="block text-base font-bold mb-2 text-primary">
+                    Category *
+                  </label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="category-select"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
                 </div>
-              ) : (
-                <div className="w-full h-96 border-2 border-border rounded-lg bg-background flex items-center justify-center">
-                  <p className="text-base text-primary">Map requires Google Maps API key</p>
-                </div>
-              )}
-            </div>
 
-            {/* Visibility Toggle */}
-            {hasProfile && (
-              <div className="flex items-center gap-3 bg-surface border-2 border-border rounded-lg p-4">
-                <input
-                  id="is_active"
-                  name="is_active"
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={handleChange}
-                  className="w-6 h-6"
-                  data-testid="visibility-toggle"
-                />
-                <label htmlFor="is_active" className="text-lg font-bold text-primary flex items-center gap-2">
-                  {formData.is_active ? (
-                    <Eye className="w-6 h-6" strokeWidth={2} />
-                  ) : (
-                    <EyeOff className="w-6 h-6" strokeWidth={2} />
-                  )}
-                  Profile Visible to Planners
-                </label>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-8 rounded-full font-bold text-lg border-2 border-primary transition-transform active:scale-95 focus:ring-4 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              data-testid="save-profile-button"
-            >
-              <Save className="w-5 h-5" strokeWidth={2} />
-              {saving ? 'Saving...' : hasProfile ? 'Update Profile' : 'Create Profile'}
-            </button>
-          </form>
-
-          {/* Preview Button */}
-          {hasProfile && GOOGLE_MAPS_API_KEY && (
-            <div className="mt-6">
-              <button
-                onClick={() => setShowPreview(!showPreview)}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 rounded-full font-bold text-lg transition-transform active:scale-95 focus:ring-4 focus:ring-secondary flex items-center justify-center gap-2"
-                data-testid="preview-button"
-              >
-                <Map className="w-5 h-5" strokeWidth={2} />
-                {showPreview ? 'Hide Preview' : 'Preview How Planners See You'}
-              </button>
-
-              {showPreview && (
-                <div className="mt-6 bg-surface border-2 border-border rounded-lg p-6 shadow-hard">
-                  <h3 className="text-xl font-bold text-primary mb-3">
-                    Planner View Preview
-                  </h3>
-                  <p className="text-base text-primary mb-4">
-                    This is how your business appears to event planners on the discovery map. Your marker is highlighted in yellow.
-                  </p>
-                  <div 
-                    ref={previewMapRef} 
-                    className="w-full h-96 border-2 border-border rounded-lg"
-                    data-testid="preview-map"
+                {/* City */}
+                <div>
+                  <label htmlFor="city" className="block text-base font-bold mb-2 text-primary">
+                    City *
+                  </label>
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    value={formData.city}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="city-input"
                   />
                 </div>
-              )}
+
+                {/* Address */}
+                <div>
+                  <label htmlFor="address" className="block text-base font-bold mb-2 text-primary">
+                    Address *
+                  </label>
+                  <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="address-input"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label htmlFor="phone" className="block text-base font-bold mb-2 text-primary">
+                    Phone *
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    required
+                    data-testid="phone-input"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label htmlFor="description" className="block text-base font-bold mb-2 text-primary">
+                    Description *
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full border-2 border-border rounded-md px-4 py-3 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary resize-none"
+                    required
+                    data-testid="description-input"
+                  />
+                </div>
+
+                {/* Website */}
+                <div>
+                  <label htmlFor="external_link" className="block text-base font-bold mb-2 text-primary">
+                    Website (Optional)
+                  </label>
+                  <input
+                    id="external_link"
+                    name="external_link"
+                    type="url"
+                    value={formData.external_link}
+                    onChange={handleChange}
+                    className="w-full h-12 border-2 border-border rounded-md px-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                    placeholder="https://"
+                    data-testid="website-input"
+                  />
+                </div>
+
+                {/* Save Button */}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-8 rounded-full font-bold text-lg border-2 border-primary transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  data-testid="save-button"
+                >
+                  <Save className="w-5 h-5" strokeWidth={2} />
+                  {saving ? 'Saving...' : hasProfile ? 'Update Profile' : 'Create Profile'}
+                </button>
+              </form>
             </div>
-          )}
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
