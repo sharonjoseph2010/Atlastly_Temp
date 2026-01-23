@@ -298,12 +298,51 @@ async def admin_get_all_vendors(current_user: dict = Depends(get_current_user)):
     vendors = await db.vendors.find({}, {"_id": 0}).to_list(1000)
     return [VendorProfile(**v) for v in vendors]
 
+@api_router.post("/admin/vendors", response_model=VendorProfile)
+async def admin_create_vendor(profile: VendorProfileCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Generate vendor_id
+    vendor_id = f"admin_vendor_{datetime.now(timezone.utc).timestamp()}"
+    
+    vendor_data = {
+        "vendor_id": vendor_id,
+        **profile.model_dump(),
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.vendors.insert_one(vendor_data)
+    return VendorProfile(**vendor_data)
+
 @api_router.put("/admin/vendors/{vendor_id}", response_model=VendorProfile)
 async def admin_update_vendor(vendor_id: str, update: AdminVendorUpdate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    result = await db.vendors.find_one_and_update(
+        {"vendor_id": vendor_id},
+        {"$set": update_data},
+        return_document=True,
+        projection={"_id": 0}
+    )
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    return VendorProfile(**result)
+
+@api_router.put("/admin/vendors/{vendor_id}/full", response_model=VendorProfile)
+async def admin_full_update_vendor(vendor_id: str, profile: VendorProfileUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    update_data = {k: v for k, v in profile.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
     
