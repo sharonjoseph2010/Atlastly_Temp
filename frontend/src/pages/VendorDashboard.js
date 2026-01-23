@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { vendorAPI, discoveryAPI } from '../utils/api';
-import { Map, Marker } from 'react-map-gl';
+import { Map, Marker } from 'react-map-gl/mapbox';
 import VendorMarker from '../components/VendorMarker';
 import { LogOut, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
