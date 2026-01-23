@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { discoveryAPI } from '../utils/api';
-import Map, { Marker } from 'react-map-gl';
+import { Map, Marker } from 'react-map-gl';
 import VendorMarker from '../components/VendorMarker';
-import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Search, ChevronUp } from 'lucide-react';
+import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Search } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
