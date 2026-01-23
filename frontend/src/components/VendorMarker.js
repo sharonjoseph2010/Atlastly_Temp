@@ -1,6 +1,6 @@
 import React from 'react';
 
-const VendorMarker = ({ vendor, state = 'confirmed', onClick, isSelected }) => {
+const VendorMarker = React.memo(({ vendor, state = 'confirmed', onClick, isSelected }) => {
   const stateColors = {
     pending: {
       bg: '#FFA500',
