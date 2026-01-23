@@ -410,14 +410,6 @@ export default function PlannerDashboard() {
     </div>
   );
 }
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { discoveryAPI } from '../utils/api';
-import { Map, Marker } from 'react-map-gl/mapbox';
-import VendorMarker from '../components/VendorMarker';
-import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Search } from 'lucide-react';
-
-const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
 
 const INITIAL_VIEW_STATE = {
