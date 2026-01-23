@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { discoveryAPI } from '../utils/api';
@@ -8,6 +8,12 @@ import { MapPin, Filter, LogOut, X, Phone, ExternalLink, Search } from 'lucide-r
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
+
+const INITIAL_VIEW_STATE = {
+  longitude: 77.2090,
+  latitude: 28.6139,
+  zoom: 4.5
+};
 
 export default function PlannerDashboard() {
   const navigate = useNavigate();
@@ -22,11 +28,23 @@ export default function PlannerDashboard() {
   const [searchLocation, setSearchLocation] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   
-  const [viewState, setViewState] = useState({
-    longitude: 77.2090,
-    latitude: 28.6139,
-    zoom: 4.5
-  });
+  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [vendorsRes, categoriesRes] = await Promise.all([
+        discoveryAPI.getVendors(),
+        discoveryAPI.getCategories(),
+      ]);
+      setVendors(vendorsRes.data);
+      setFilteredVendors(vendorsRes.data);
+      setCategories(categoriesRes.data.categories);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (user?.role !== 'planner') {
@@ -34,7 +52,7 @@ export default function PlannerDashboard() {
       return;
     }
     loadData();
-  }, [user, navigate]);
+  }, [user, navigate, loadData]);
 
   useEffect(() => {
     if (selectedCategory === 'all') {
@@ -55,29 +73,57 @@ export default function PlannerDashboard() {
         setFilteredVendors(filtered);
       }
     }
-  }, [selectedCategory, vendors]);
+  }, [selectedCategory, vendors, searchLocation]);
 
-  const loadData = async () => {
-    try {
-      const [vendorsRes, categoriesRes] = await Promise.all([
-        discoveryAPI.getVendors(),
-        discoveryAPI.getCategories(),
-      ]);
-      setVendors(vendorsRes.data);
-      setFilteredVendors(vendorsRes.data);
-      setCategories(categoriesRes.data.categories);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMarkerClick = (vendor) => {
+  const handleMarkerClick = useCallback((vendor) => {
     setSelectedVendor(vendor);
-    // Recenter map slightly above the marker
-    setViewState({
-      ...viewState,
+    setViewState(prev => ({
+      ...prev,
+      longitude: vendor.longitude,
+      latitude: vendor.latitude + 0.02,
+      zoom: Math.max(prev.zoom, 12)
+    }));
+  }, []);
+
+  const handleLocationSearch = useCallback((e) => {
+    e.preventDefault();
+    if (!searchLocation.trim()) return;
+
+    const searchTerm = searchLocation.toLowerCase().trim();
+    const matchingVendors = vendors.filter(v => 
+      v.city.toLowerCase().includes(searchTerm) || 
+      v.address.toLowerCase().includes(searchTerm)
+    );
+    
+    if (matchingVendors.length > 0) {
+      setFilteredVendors(matchingVendors);
+      const firstVendor = matchingVendors[0];
+      setViewState({
+        longitude: firstVendor.longitude,
+        latitude: firstVendor.latitude,
+        zoom: 12
+      });
+    } else {
+      alert(`No vendors found in "${searchLocation}".`);
+    }
+  }, [searchLocation, vendors]);
+
+  const clearLocationSearch = useCallback(() => {
+    setSearchLocation('');
+    setFilteredVendors(vendors);
+    if (selectedCategory !== 'all') {
+      setFilteredVendors(vendors.filter(v => v.category === selectedCategory));
+    }
+  }, [vendors, selectedCategory]);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    navigate('/');
+  }, [logout, navigate]);
+
+  const onMove = useCallback((evt) => {
+    setViewState(evt.viewState);
+  }, []);
       longitude: vendor.longitude,
       latitude: vendor.latitude + 0.02,
       zoom: Math.max(viewState.zoom, 12)
