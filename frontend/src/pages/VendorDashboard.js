@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { vendorAPI, discoveryAPI } from '../utils/api';
@@ -8,6 +8,12 @@ import { LogOut, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
+
+const INITIAL_VIEW_STATE = {
+  longitude: 77.2090,
+  latitude: 28.6139,
+  zoom: 12
+};
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
@@ -33,21 +39,9 @@ export default function VendorDashboard() {
     is_active: true,
   });
 
-  const [viewState, setViewState] = useState({
-    longitude: 77.2090,
-    latitude: 28.6139,
-    zoom: 12
-  });
+  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
 
-  useEffect(() => {
-    if (user?.role !== 'vendor') {
-      navigate('/');
-      return;
-    }
-    loadData();
-  }, [user, navigate]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const categoriesRes = await discoveryAPI.getCategories();
       setCategories(categoriesRes.data.categories);
@@ -72,31 +66,39 @@ export default function VendorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const handleMarkerDragEnd = (event) => {
+  useEffect(() => {
+    if (user?.role !== 'vendor') {
+      navigate('/');
+      return;
+    }
+    loadData();
+  }, [user, navigate, loadData]);
+
+  const handleMarkerDragEnd = useCallback((event) => {
     const { lng, lat } = event.lngLat;
     setFormData(prev => ({
       ...prev,
       latitude: lat,
       longitude: lng,
     }));
-    setViewState({
-      ...viewState,
+    setViewState(prev => ({
+      ...prev,
       longitude: lng,
       latitude: lat,
-    });
-  };
+    }));
+  }, []);
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setSaving(true);
     setMessage({ type: '', text: '' });
@@ -119,12 +121,16 @@ export default function VendorDashboard() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [hasProfile, formData, user]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/');
-  };
+  }, [logout, navigate]);
+
+  const onMove = useCallback((evt) => {
+    setViewState(evt.viewState);
+  }, []);
 
   if (loading) {
     return (
