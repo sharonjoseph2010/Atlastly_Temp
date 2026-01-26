@@ -1,26 +1,16 @@
--- Atlastly Database Schema for Supabase PostgreSQL
+-- Supabase Schema for Atlastly Platform
+-- This schema uses Supabase Auth for authentication
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Users table
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('planner', 'vendor', 'admin')),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Create vendors table
+-- Note: User authentication is handled by Supabase Auth (auth.users table)
+-- We'll store additional user metadata in a custom table if needed
 
--- Create index on email for faster lookups
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
-
--- Vendors table
-CREATE TABLE IF NOT EXISTS vendors (
+CREATE TABLE IF NOT EXISTS public.vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    vendor_id TEXT UNIQUE NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     business_name TEXT NOT NULL,
     category TEXT NOT NULL,
     city TEXT NOT NULL,
@@ -31,39 +21,69 @@ CREATE TABLE IF NOT EXISTS vendors (
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for vendors
-CREATE INDEX IF NOT EXISTS idx_vendors_vendor_id ON vendors(vendor_id);
-CREATE INDEX IF NOT EXISTS idx_vendors_category ON vendors(category);
-CREATE INDEX IF NOT EXISTS idx_vendors_city ON vendors(city);
-CREATE INDEX IF NOT EXISTS idx_vendors_is_active ON vendors(is_active);
-CREATE INDEX IF NOT EXISTS idx_vendors_location ON vendors(latitude, longitude);
+-- Create user_roles table to store role information
+-- Since Supabase Auth doesn't have a native "role" field, we'll store it separately
+CREATE TABLE IF NOT EXISTS public.user_roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    role TEXT NOT NULL CHECK (role IN ('planner', 'vendor', 'admin')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_vendors_city ON public.vendors(city);
+CREATE INDEX IF NOT EXISTS idx_vendors_category ON public.vendors(category);
+CREATE INDEX IF NOT EXISTS idx_vendors_user_id ON public.vendors(user_id);
+CREATE INDEX IF NOT EXISTS idx_vendors_location ON public.vendors(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
 
--- Create policies for users table
-CREATE POLICY "Enable read access for authenticated users" ON users
-    FOR SELECT USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Enable insert for service role" ON users
-    FOR INSERT WITH CHECK (auth.role() = 'service_role');
+-- RLS Policies for vendors table
 
-CREATE POLICY "Enable update for service role" ON users
-    FOR UPDATE USING (auth.role() = 'service_role');
+-- Anyone can view active vendors
+CREATE POLICY "Public vendors are viewable by everyone" ON public.vendors
+    FOR SELECT USING (is_active = true);
 
--- Create policies for vendors table
-CREATE POLICY "Enable read access for all users" ON vendors
-    FOR SELECT USING (true);
+-- Vendors can insert their own listing
+CREATE POLICY "Vendors can insert their own listing" ON public.vendors
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Enable insert for service role" ON vendors
-    FOR INSERT WITH CHECK (auth.role() = 'service_role');
+-- Vendors can update their own listing
+CREATE POLICY "Vendors can update their own listing" ON public.vendors
+    FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Enable update for service role" ON vendors
-    FOR UPDATE USING (auth.role() = 'service_role');
+-- Vendors can delete their own listing
+CREATE POLICY "Vendors can delete their own listing" ON public.vendors
+    FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Enable delete for service role" ON vendors
-    FOR DELETE USING (auth.role() = 'service_role');
+-- Admins can do everything (we'll handle admin check in the application layer)
+
+-- RLS Policies for user_roles table
+
+-- Users can view their own role
+CREATE POLICY "Users can view their own role" ON public.user_roles
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Only service role can insert roles (handled during signup)
+CREATE POLICY "Service role can insert roles" ON public.user_roles
+    FOR INSERT WITH CHECK (true);
+
+-- Create a function to automatically update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for vendors table
+CREATE TRIGGER update_vendors_updated_at BEFORE UPDATE ON public.vendors
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
