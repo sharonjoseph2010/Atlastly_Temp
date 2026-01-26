@@ -588,6 +588,7 @@ class EventServicesAPITester:
         """Run comprehensive test suite"""
         print("🚀 Starting Event Services Discovery Platform API Tests")
         print(f"📍 Testing against: {self.base_url}")
+        print("🔄 Testing Supabase Migration")
         print("=" * 60)
         
         # Basic API tests
@@ -595,8 +596,28 @@ class EventServicesAPITester:
         self.test_root_endpoint()
         self.test_categories_endpoint()
         
-        # Authentication tests
-        print("\n🔐 AUTHENTICATION TESTS")
+        # Test migrated users first
+        print("\n🔄 MIGRATED USER TESTS")
+        self.test_migrated_user_login('planner')
+        self.test_migrated_user_login('vendor') 
+        self.test_migrated_user_login('admin')
+        
+        # Discovery tests with vendor count check
+        print("\n🔍 DISCOVERY API TESTS")
+        self.test_vendor_count_discovery()
+        self.test_discovery_endpoints()
+        
+        # Migrated vendor tests
+        print("\n🏪 MIGRATED VENDOR TESTS")
+        self.test_migrated_vendor_profile_access()
+        self.test_migrated_vendor_profile_update()
+        
+        # Migrated admin tests
+        print("\n👑 MIGRATED ADMIN TESTS")
+        self.test_migrated_admin_vendor_management()
+        
+        # Authentication tests with new users
+        print("\n🔐 NEW USER AUTHENTICATION TESTS")
         self.test_user_signup('planner')
         self.test_user_signup('vendor') 
         self.test_user_signup('admin')
@@ -606,19 +627,15 @@ class EventServicesAPITester:
         self.test_invalid_login()
         self.test_duplicate_signup()
         
-        # Vendor CRUD tests
-        print("\n🏪 VENDOR CRUD TESTS")
+        # Vendor CRUD tests with new users
+        print("\n🏪 NEW VENDOR CRUD TESTS")
         self.test_create_vendor_profile()
         self.test_get_vendor_profile()
         self.test_update_vendor_profile()
         self.test_unauthorized_vendor_access()
         
-        # Discovery tests
-        print("\n🔍 DISCOVERY API TESTS")
-        self.test_discovery_endpoints()
-        
-        # Admin tests
-        print("\n👑 ADMIN MANAGEMENT TESTS")
+        # Admin tests with new users
+        print("\n👑 NEW ADMIN MANAGEMENT TESTS")
         self.test_admin_endpoints()
         
         # Security tests
