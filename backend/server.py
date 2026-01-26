@@ -1,31 +1,27 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from supabase import create_client, Client
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal
-from datetime import datetime, timezone, timedelta
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Supabase connection
+SUPABASE_URL = os.environ['SUPABASE_URL']
+SUPABASE_SERVICE_KEY = os.environ['SUPABASE_SERVICE_KEY']
+SUPABASE_ANON_KEY = os.environ['SUPABASE_ANON_KEY']
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # Security
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 30
 
 # Service Categories (Fixed)
 SERVICE_CATEGORIES = [
@@ -46,28 +42,37 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # ============= Helper Functions =============
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify Supabase JWT token and return user info"""
     try:
         token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        role: str = payload.get("role")
-        if user_id is None:
+        
+        # Verify token with Supabase
+        user_response = supabase.auth.get_user(token)
+        
+        if not user_response or not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid authentication")
-        return {"user_id": user_id, "role": role}
-    except JWTError:
+        
+        user = user_response.user
+        user_id = user.id
+        
+        # Get user role from user_roles table
+        role_response = supabase.table('user_roles').select('role').eq('user_id', user_id).single().execute()
+        
+        if not role_response.data:
+            raise HTTPException(status_code=401, detail="User role not found")
+        
+        role = role_response.data['role']
+        
+        return {
+            "user_id": user_id,
+            "email": user.email,
+            "role": role
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Auth error: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
 # ============= Models =============
@@ -124,7 +129,7 @@ class VendorProfileUpdate(BaseModel):
 class VendorProfile(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
-    vendor_id: str
+    id: str
     business_name: str
     category: str
     city: str
@@ -140,7 +145,7 @@ class VendorProfile(BaseModel):
 class VendorPublic(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
-    vendor_id: str
+    id: str
     business_name: str
     category: str
     city: str
@@ -161,7 +166,7 @@ class AdminVendorUpdate(BaseModel):
 
 @api_router.get("/")
 async def root():
-    return {"message": "Event Services Discovery API"}
+    return {"message": "Event Services Discovery API - Powered by Supabase"}
 
 @api_router.get("/categories")
 async def get_categories():
@@ -170,48 +175,84 @@ async def get_categories():
 # ============= Auth Routes =============
 @api_router.post("/auth/signup", response_model=AuthResponse)
 async def signup(request: SignupRequest):
-    # Check if user exists
-    existing_user = await db.users.find_one({"email": request.email}, {"_id": 0})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Create user
-    user_data = {
-        "user_id": f"{request.role}_{request.email.split('@')[0]}_{datetime.now(timezone.utc).timestamp()}",
-        "email": request.email,
-        "password": hash_password(request.password),
-        "role": request.role,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.users.insert_one(user_data)
-    
-    # Generate token
-    token = create_access_token({"sub": user_data["user_id"], "role": user_data["role"]})
-    
-    return AuthResponse(
-        token=token,
-        role=user_data["role"],
-        user_id=user_data["user_id"],
-        message="Signup successful"
-    )
+    try:
+        # Create user in Supabase Auth
+        auth_response = supabase.auth.sign_up({
+            "email": request.email,
+            "password": request.password,
+            "options": {
+                "data": {
+                    "role": request.role
+                }
+            }
+        })
+        
+        if not auth_response.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
+        
+        user_id = auth_response.user.id
+        
+        # Store role in user_roles table
+        supabase.table('user_roles').insert({
+            "user_id": user_id,
+            "role": request.role
+        }).execute()
+        
+        # Get session token
+        if not auth_response.session:
+            raise HTTPException(status_code=400, detail="Session creation failed")
+        
+        token = auth_response.session.access_token
+        
+        return AuthResponse(
+            token=token,
+            role=request.role,
+            user_id=user_id,
+            message="Signup successful"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        if "already registered" in error_msg or "already exists" in error_msg:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        logging.error(f"Signup error: {error_msg}")
+        raise HTTPException(status_code=400, detail=f"Signup failed: {error_msg}")
 
 @api_router.post("/auth/login", response_model=AuthResponse)
 async def login(request: LoginRequest):
-    # Find user
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
-    if not user or not verify_password(request.password, user["password"]):
+    try:
+        # Authenticate with Supabase
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password
+        })
+        
+        if not auth_response.user or not auth_response.session:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        user_id = auth_response.user.id
+        token = auth_response.session.access_token
+        
+        # Get user role
+        role_response = supabase.table('user_roles').select('role').eq('user_id', user_id).single().execute()
+        
+        if not role_response.data:
+            raise HTTPException(status_code=401, detail="User role not found")
+        
+        role = role_response.data['role']
+        
+        return AuthResponse(
+            token=token,
+            role=role,
+            user_id=user_id,
+            message="Login successful"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    # Generate token
-    token = create_access_token({"sub": user["user_id"], "role": user["role"]})
-    
-    return AuthResponse(
-        token=token,
-        role=user["role"],
-        user_id=user["user_id"],
-        message="Login successful"
-    )
 
 # ============= Vendor Routes =============
 @api_router.post("/vendor/profile", response_model=VendorProfile)
@@ -219,31 +260,41 @@ async def create_vendor_profile(profile: VendorProfileCreate, current_user: dict
     if current_user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Only vendors can create profiles")
     
-    # Check if vendor already has a profile
-    existing = await db.vendors.find_one({"vendor_id": current_user["user_id"]}, {"_id": 0})
-    if existing:
-        raise HTTPException(status_code=400, detail="Profile already exists")
-    
-    vendor_data = {
-        "vendor_id": current_user["user_id"],
-        **profile.model_dump(),
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.vendors.insert_one(vendor_data)
-    return VendorProfile(**vendor_data)
+    try:
+        # Check if vendor already has a profile
+        existing = supabase.table('vendors').select('id').eq('user_id', current_user["user_id"]).execute()
+        
+        if existing.data:
+            raise HTTPException(status_code=400, detail="Profile already exists")
+        
+        vendor_data = {
+            "user_id": current_user["user_id"],
+            **profile.model_dump()
+        }
+        
+        result = supabase.table('vendors').insert(vendor_data).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to create profile")
+        
+        return VendorProfile(**result.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Create profile error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create profile")
 
 @api_router.get("/vendor/profile", response_model=VendorProfile)
 async def get_vendor_profile(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Only vendors can access this")
     
-    vendor = await db.vendors.find_one({"vendor_id": current_user["user_id"]}, {"_id": 0})
-    if not vendor:
+    result = supabase.table('vendors').select('*').eq('user_id', current_user["user_id"]).execute()
+    
+    if not result.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     
-    return VendorProfile(**vendor)
+    return VendorProfile(**result.data[0])
 
 @api_router.put("/vendor/profile", response_model=VendorProfile)
 async def update_vendor_profile(update: VendorProfileUpdate, current_user: dict = Depends(get_current_user)):
@@ -257,37 +308,41 @@ async def update_vendor_profile(update: VendorProfileUpdate, current_user: dict 
     if "category" in update_data and update_data["category"] not in SERVICE_CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
     
-    result = await db.vendors.find_one_and_update(
-        {"vendor_id": current_user["user_id"]},
-        {"$set": update_data},
-        return_document=True,
-        projection={"_id": 0}
-    )
+    result = supabase.table('vendors').update(update_data).eq('user_id', current_user["user_id"]).execute()
     
-    if not result:
+    if not result.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     
-    return VendorProfile(**result)
+    return VendorProfile(**result.data[0])
 
 # ============= Discovery Routes =============
 @api_router.get("/vendors", response_model=List[VendorPublic])
 async def get_vendors(category: Optional[str] = None):
-    query = {"is_active": True}
-    if category:
-        if category not in SERVICE_CATEGORIES:
-            raise HTTPException(status_code=400, detail="Invalid category")
-        query["category"] = category
-    
-    vendors = await db.vendors.find(query, {"_id": 0}).to_list(1000)
-    return [VendorPublic(**v) for v in vendors]
+    try:
+        query = supabase.table('vendors').select('*').eq('is_active', True)
+        
+        if category:
+            if category not in SERVICE_CATEGORIES:
+                raise HTTPException(status_code=400, detail="Invalid category")
+            query = query.eq('category', category)
+        
+        result = query.execute()
+        
+        return [VendorPublic(**v) for v in result.data]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Get vendors error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch vendors")
 
 @api_router.get("/vendors/{vendor_id}", response_model=VendorPublic)
 async def get_vendor_detail(vendor_id: str):
-    vendor = await db.vendors.find_one({"vendor_id": vendor_id, "is_active": True}, {"_id": 0})
-    if not vendor:
+    result = supabase.table('vendors').select('*').eq('id', vendor_id).eq('is_active', True).execute()
+    
+    if not result.data:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
-    return VendorPublic(**vendor)
+    return VendorPublic(**result.data[0])
 
 # ============= Admin Routes =============
 @api_router.get("/admin/vendors", response_model=List[VendorProfile])
@@ -295,26 +350,26 @@ async def admin_get_all_vendors(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    vendors = await db.vendors.find({}, {"_id": 0}).to_list(1000)
-    return [VendorProfile(**v) for v in vendors]
+    result = supabase.table('vendors').select('*').execute()
+    
+    return [VendorProfile(**v) for v in result.data]
 
 @api_router.post("/admin/vendors", response_model=VendorProfile)
 async def admin_create_vendor(profile: VendorProfileCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Generate vendor_id
-    vendor_id = f"admin_vendor_{datetime.now(timezone.utc).timestamp()}"
-    
     vendor_data = {
-        "vendor_id": vendor_id,
-        **profile.model_dump(),
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "user_id": None,  # Admin-created vendors don't have a user_id
+        **profile.model_dump()
     }
     
-    await db.vendors.insert_one(vendor_data)
-    return VendorProfile(**vendor_data)
+    result = supabase.table('vendors').insert(vendor_data).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create vendor")
+    
+    return VendorProfile(**result.data[0])
 
 @api_router.put("/admin/vendors/{vendor_id}", response_model=VendorProfile)
 async def admin_update_vendor(vendor_id: str, update: AdminVendorUpdate, current_user: dict = Depends(get_current_user)):
@@ -325,17 +380,12 @@ async def admin_update_vendor(vendor_id: str, update: AdminVendorUpdate, current
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
     
-    result = await db.vendors.find_one_and_update(
-        {"vendor_id": vendor_id},
-        {"$set": update_data},
-        return_document=True,
-        projection={"_id": 0}
-    )
+    result = supabase.table('vendors').update(update_data).eq('id', vendor_id).execute()
     
-    if not result:
+    if not result.data:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
-    return VendorProfile(**result)
+    return VendorProfile(**result.data[0])
 
 @api_router.put("/admin/vendors/{vendor_id}/full", response_model=VendorProfile)
 async def admin_full_update_vendor(vendor_id: str, profile: VendorProfileUpdate, current_user: dict = Depends(get_current_user)):
@@ -346,25 +396,21 @@ async def admin_full_update_vendor(vendor_id: str, profile: VendorProfileUpdate,
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
     
-    result = await db.vendors.find_one_and_update(
-        {"vendor_id": vendor_id},
-        {"$set": update_data},
-        return_document=True,
-        projection={"_id": 0}
-    )
+    result = supabase.table('vendors').update(update_data).eq('id', vendor_id).execute()
     
-    if not result:
+    if not result.data:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
-    return VendorProfile(**result)
+    return VendorProfile(**result.data[0])
 
 @api_router.delete("/admin/vendors/{vendor_id}")
 async def admin_delete_vendor(vendor_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    result = await db.vendors.delete_one({"vendor_id": vendor_id})
-    if result.deleted_count == 0:
+    result = supabase.table('vendors').delete().eq('id', vendor_id).execute()
+    
+    if not result.data:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
     return {"message": "Vendor deleted successfully"}
@@ -385,7 +431,3 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
