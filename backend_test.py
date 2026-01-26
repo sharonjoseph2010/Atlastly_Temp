@@ -162,6 +162,29 @@ class EventServicesAPITester:
             return True
         return False
 
+    def test_user_login(self, role: str):
+        """Test user login for specific role"""
+        user_data = self.test_users[role]
+        login_data = {
+            "email": user_data['email'],
+            "password": user_data['password']
+        }
+        
+        success, response = self.run_test(
+            f"{role.title()} Login", 
+            "POST", 
+            "auth/login", 
+            200, 
+            login_data
+        )
+        
+        if success and 'token' in response:
+            # Verify we get the same token/user_id as signup
+            if role in self.tokens:
+                print(f"   ✅ Login successful for existing {role}")
+            return True
+        return False
+
     def test_migrated_user_login(self, role: str):
         """Test login with migrated users from Supabase migration"""
         user_data = self.migrated_users[role]
