@@ -23,6 +23,24 @@ class EventServicesAPITester:
         
         # Test data
         self.test_timestamp = datetime.now().strftime('%H%M%S')
+        
+        # Migrated users for testing (from review request)
+        self.migrated_users = {
+            'planner': {
+                'email': 'sharonjoseph2010@gmail.com',
+                'password': 'ChangeMe123!'
+            },
+            'vendor': {
+                'email': 'jacob@test.com',
+                'password': 'ChangeMe123!'
+            },
+            'admin': {
+                'email': 'sarah@test.com',
+                'password': 'ChangeMe123!'
+            }
+        }
+        
+        # New test users for signup tests
         self.test_users = {
             'planner': {
                 'email': f'planner_{self.test_timestamp}@test.com',
