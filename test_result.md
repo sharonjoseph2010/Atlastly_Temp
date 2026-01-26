@@ -76,9 +76,11 @@ test_plan:
     - "Fix missing user_roles entries for migrated users"
     - "Vendor Endpoints (GET/POST/PUT /api/vendor/profile)"
     - "Admin Endpoints (GET/POST/PUT/DELETE /api/admin/vendors)"
+    - "Frontend Integration Testing"
   stuck_tasks:
     - "Vendor Endpoints - Missing user role in database"
     - "Admin Endpoints - Missing user role in database"
+    - "Vendor Authentication Flow - Critical login failures"
   test_all: false
   test_priority: "high_first"
 
