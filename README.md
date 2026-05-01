@@ -94,7 +94,7 @@ cd /app/frontend
 
 2. Add your Google Maps API key to `.env`:
 ```
-REACT_APP_BACKEND_URL=https://eventmap-13.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://atlastly-restore.preview.emergentagent.com
 WDS_SOCKET_PORT=443
 ENABLE_HEALTH_CHECK=false
 REACT_APP_GOOGLE_MAPS_API_KEY=your_api_key_here

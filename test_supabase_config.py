@@ -21,7 +21,7 @@ def test_supabase_auth():
     service_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     
     # Get a user token first
-    BASE_URL = "https://eventmap-13.preview.emergentagent.com"
+    BASE_URL = "https://atlastly-restore.preview.emergentagent.com"
     API_URL = f"{BASE_URL}/api"
     
     vendor_login = {

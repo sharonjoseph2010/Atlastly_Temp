@@ -6,7 +6,7 @@ Check all vendors and their details
 import requests
 import json
 
-BASE_URL = "https://eventmap-13.preview.emergentagent.com"
+BASE_URL = "https://atlastly-restore.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 def check_vendors():

@@ -7,7 +7,7 @@ import requests
 import json
 import time
 
-BASE_URL = "https://eventmap-13.preview.emergentagent.com"
+BASE_URL = "https://atlastly-restore.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 def test_with_retry(name, func, max_retries=2):
