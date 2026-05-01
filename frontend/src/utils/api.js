@@ -71,6 +71,11 @@ export const adminAPI = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 
+  bulkGoogleLookup: (urls, token) =>
+    api.post('/admin/bulk-google-lookup', { urls }, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
   googleLookupQuota: (token) =>
     api.get('/admin/google-lookup/quota', {
       headers: { Authorization: `Bearer ${token}` },

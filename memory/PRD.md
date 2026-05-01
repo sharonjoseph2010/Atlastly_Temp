@@ -28,6 +28,11 @@ User language: English.
   - Static `types[]` → category mapping (10 categories), with Gemini Flash fallback when no static match.
   - Free-tier safety: 3 calls/min/IP via slowapi + persistent daily cap (default 200/day) stored in `/app/backend/.api_usage.json`.
   - Endpoints: `POST /api/admin/google-lookup`, `GET /api/admin/google-lookup/quota`.
+- **Bulk Google Maps import** (Feb 2026):
+  - Modal accessible via "Bulk Import" button in admin header.
+  - Paste up to 25 Google Maps URLs (one per line). Two-step flow: fetch → review (with editable name & category, missing-field warnings, per-row checkbox) → create all selected.
+  - Backend endpoint: `POST /api/admin/bulk-google-lookup` (no slowapi cap, but each lookup increments daily cap; if cap reached mid-batch, remaining URLs marked "Skipped").
+  - Frontend component: `frontend/src/components/BulkImportModal.js`.
 
 ## Key Files
 - `backend/server.py` — FastAPI app, all routes.

@@ -441,6 +441,18 @@ class GoogleLookupRequest(BaseModel):
     url: str
 
 
+class BulkLookupRequest(BaseModel):
+    urls: List[str]
+
+    @field_validator('urls')
+    def validate_urls(cls, v):
+        if not v:
+            raise ValueError('At least one URL required')
+        if len(v) > 25:
+            raise ValueError('Maximum 25 URLs per request')
+        return v
+
+
 @api_router.post("/admin/google-lookup")
 @limiter.limit(f"{PER_MIN}/minute")
 async def google_lookup(request: Request, body: GoogleLookupRequest, current_user: dict = Depends(get_current_user)):
@@ -455,6 +467,45 @@ async def google_lookup(request: Request, body: GoogleLookupRequest, current_use
     except Exception as e:
         logging.exception("Google lookup failed")
         raise HTTPException(status_code=500, detail=f"Lookup failed: {e}")
+
+
+@api_router.post("/admin/bulk-google-lookup")
+async def bulk_google_lookup(request: Request, body: BulkLookupRequest, current_user: dict = Depends(get_current_user)):
+    """Bulk lookup. Processes up to 25 URLs sequentially. Each call counts toward daily cap.
+    Returns per-URL result so the admin can review before creating."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    results = []
+    for url in body.urls:
+        url = (url or '').strip()
+        if not url:
+            results.append({"url": url, "ok": False, "error": "Empty URL"})
+            continue
+        try:
+            r = await lookup_from_url(url)
+            results.append({"url": url, "ok": True, "data": r["data"], "meta": r["meta"]})
+        except QuotaExceededError as e:
+            # stop processing further; remaining are skipped
+            results.append({"url": url, "ok": False, "error": str(e), "quota_exceeded": True})
+            for remaining in body.urls[len(results):]:
+                results.append({"url": remaining, "ok": False, "error": "Skipped — daily quota exhausted"})
+            break
+        except ValueError as e:
+            results.append({"url": url, "ok": False, "error": str(e)})
+        except Exception as e:
+            logging.exception(f"Bulk lookup failed for {url}")
+            results.append({"url": url, "ok": False, "error": f"Lookup failed: {e}"})
+
+    return {
+        "results": results,
+        "summary": {
+            "total": len(results),
+            "successful": sum(1 for r in results if r["ok"]),
+            "failed": sum(1 for r in results if not r["ok"]),
+        },
+        "quota": get_quota_status(),
+    }
 
 
 @api_router.get("/admin/google-lookup/quota")

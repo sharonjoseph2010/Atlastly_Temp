@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminAPI, discoveryAPI } from '../utils/api';
 import { Map, Marker } from 'react-map-gl/mapbox';
-import { LogOut, Shield, Plus, Edit, Trash2, X, Save, MapPin, Eye, EyeOff, Sparkles, Link as LinkIcon } from 'lucide-react';
+import BulkImportModal from '../components/BulkImportModal';
+import { LogOut, Shield, Plus, Edit, Trash2, X, Save, MapPin, Eye, EyeOff, Sparkles, Link as LinkIcon, Upload } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
@@ -42,6 +43,9 @@ export default function AdminDashboard() {
   const [importing, setImporting] = useState(false);
   const [importMeta, setImportMeta] = useState(null);
   const [importError, setImportError] = useState('');
+
+  // Bulk import modal
+  const [showBulk, setShowBulk] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -244,6 +248,14 @@ export default function AdminDashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-primary">Admin Dashboard</h1>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowBulk(true)}
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-4 md:px-6 rounded-full font-bold border-2 border-secondary transition-transform active:scale-95"
+            data-testid="bulk-import-button"
+          >
+            <Upload className="w-5 h-5" strokeWidth={2} />
+            <span className="hidden md:inline">Bulk Import</span>
+          </button>
           <button
             onClick={openCreateForm}
             className="flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-6 rounded-full font-bold border-2 border-primary transition-transform active:scale-95"
@@ -673,6 +685,14 @@ export default function AdminDashboard() {
             </form>
           </div>
         </div>
+      )}
+      {/* Bulk Import Modal */}
+      {showBulk && (
+        <BulkImportModal
+          token={user.token}
+          onClose={() => setShowBulk(false)}
+          onCreated={loadData}
+        />
       )}
     </div>
   );
