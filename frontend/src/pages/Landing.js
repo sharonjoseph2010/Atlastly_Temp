@@ -84,15 +84,15 @@ export default function Landing() {
       {/* ===== Hero ===== */}
       <section className="px-6 md:px-12 pt-16 md:pt-24 pb-8 md:pb-12">
         <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.1] text-primary">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-[5.5rem] font-black leading-[1.05] text-primary">
             <span className="block">
               Finding your next{' '}
               <Pill icon={Calendar} variant="surface">event</Pill>
             </span>
-            <span className="block mt-4 md:mt-6">
-              <span className="text-primary/30">should be as easy as</span>
+            <span className="block mt-2 md:mt-3 text-primary/50 font-bold">
+              should be as easy as
             </span>
-            <span className="block mt-4 md:mt-6">
+            <span className="block mt-2 md:mt-3">
               using a <Pill icon={MapIcon} variant="secondary">map</Pill>
             </span>
           </h1>
