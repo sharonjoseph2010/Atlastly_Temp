@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminAPI, discoveryAPI } from '../utils/api';
 import { Map, Marker } from 'react-map-gl/mapbox';
-import { LogOut, Shield, Plus, Edit, Trash2, X, Save, MapPin, Eye, EyeOff } from 'lucide-react';
+import { LogOut, Shield, Plus, Edit, Trash2, X, Save, MapPin, Eye, EyeOff, Sparkles, Link as LinkIcon } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.REACT_APP_MAPBOX_STYLE;
@@ -36,6 +36,12 @@ export default function AdminDashboard() {
     latitude: 28.6139,
     zoom: 12
   });
+
+  // Google Maps URL import state
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMeta, setImportMeta] = useState(null);
+  const [importError, setImportError] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -135,7 +141,44 @@ export default function AdminDashboard() {
     setShowForm(false);
     setEditingVendor(null);
     setMessage({ type: '', text: '' });
+    setImportUrl('');
+    setImportMeta(null);
+    setImportError('');
   }, []);
+
+  const handleImportFromGoogle = useCallback(async () => {
+    if (!importUrl.trim()) {
+      setImportError('Paste a Google Maps URL first');
+      return;
+    }
+    setImporting(true);
+    setImportError('');
+    setImportMeta(null);
+    try {
+      const res = await adminAPI.googleLookup(importUrl.trim(), user.token);
+      const { data, meta } = res.data;
+      setFormData(prev => ({
+        ...prev,
+        business_name: data.business_name || prev.business_name,
+        category: data.category || prev.category,
+        city: data.city || prev.city,
+        address: data.address || prev.address,
+        phone: data.phone || prev.phone,
+        description: data.description || prev.description,
+        external_link: data.external_link || prev.external_link,
+        latitude: data.latitude ?? prev.latitude,
+        longitude: data.longitude ?? prev.longitude,
+      }));
+      if (data.latitude && data.longitude) {
+        setViewState({ longitude: data.longitude, latitude: data.latitude, zoom: 14 });
+      }
+      setImportMeta(meta);
+    } catch (err) {
+      setImportError(err.response?.data?.detail || 'Failed to import from Google');
+    } finally {
+      setImporting(false);
+    }
+  }, [importUrl, user]);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -383,6 +426,61 @@ export default function AdminDashboard() {
             )}
 
             <form onSubmit={handleSubmit} className="p-6">
+              {/* Google Maps URL Import (admin power-fill) */}
+              <div className="mb-6 p-5 rounded-xl border-2 border-secondary bg-secondary/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-primary" strokeWidth={2} />
+                  <h3 className="text-lg font-bold text-primary">Auto-fill from Google Maps</h3>
+                </div>
+                <p className="text-sm text-primary/80 mb-3">
+                  Paste any Google Maps link (full URL or shortened <code className="font-mono text-xs">maps.app.goo.gl</code> share link). We'll fetch name, address, phone, location, website & category.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/60" strokeWidth={2} />
+                    <input
+                      type="url"
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                      placeholder="https://maps.app.goo.gl/..."
+                      className="w-full h-12 border-2 border-border rounded-md pl-11 pr-4 text-base focus:border-primary focus:ring-2 focus:ring-secondary/50 outline-none bg-white text-primary"
+                      data-testid="google-import-url"
+                      disabled={importing}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleImportFromGoogle}
+                    disabled={importing || !importUrl.trim()}
+                    className="h-12 px-6 rounded-full font-bold text-base bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                    data-testid="google-import-button"
+                  >
+                    <Sparkles className="w-5 h-5" strokeWidth={2} />
+                    {importing ? 'Fetching…' : 'Auto-fill'}
+                  </button>
+                </div>
+                {importError && (
+                  <p className="mt-3 text-sm font-medium text-error" data-testid="google-import-error">
+                    {importError}
+                  </p>
+                )}
+                {importMeta && (
+                  <div className="mt-3 text-sm text-success" data-testid="google-import-success">
+                    <p className="font-medium">
+                      ✓ Auto-filled from Google. {importMeta.missing_fields?.length > 0 && (
+                        <span className="text-primary/80">Please add: {importMeta.missing_fields.join(', ')}.</span>
+                      )}
+                    </p>
+                    {importMeta.category_via_llm && (
+                      <p className="text-xs text-primary/70 mt-1">Category inferred by AI — verify before saving.</p>
+                    )}
+                    <p className="text-xs text-primary/60 mt-1">
+                      Daily quota: {importMeta.quota_used_today}/{importMeta.quota_daily_cap}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Business Name */}
                 <div>

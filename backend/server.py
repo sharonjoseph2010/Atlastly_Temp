@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -9,6 +9,12 @@ from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal
 from datetime import datetime, timezone
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+from google_lookup import lookup_from_url, get_quota_status, QuotaExceededError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -40,6 +46,21 @@ SERVICE_CATEGORIES = [
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# Rate limiter (per-IP, in-memory). Conservative defaults for free-tier safety.
+PER_MIN = int(os.environ.get('GOOGLE_PLACES_PER_MIN', '3'))
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Too many requests. Limit: {exc.detail}. Wait a minute and retry."},
+    )
 
 # ============= Helper Functions =============
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -414,6 +435,34 @@ async def admin_delete_vendor(vendor_id: str, current_user: dict = Depends(get_c
         raise HTTPException(status_code=404, detail="Vendor not found")
     
     return {"message": "Vendor deleted successfully"}
+
+# ============= Google Maps Lookup (Admin) =============
+class GoogleLookupRequest(BaseModel):
+    url: str
+
+
+@api_router.post("/admin/google-lookup")
+@limiter.limit(f"{PER_MIN}/minute")
+async def google_lookup(request: Request, body: GoogleLookupRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    try:
+        return await lookup_from_url(body.url)
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Google lookup failed")
+        raise HTTPException(status_code=500, detail=f"Lookup failed: {e}")
+
+
+@api_router.get("/admin/google-lookup/quota")
+async def google_lookup_quota(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return get_quota_status()
+
 
 # Include router
 app.include_router(api_router)

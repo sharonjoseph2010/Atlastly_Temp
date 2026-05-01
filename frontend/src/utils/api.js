@@ -65,4 +65,14 @@ export const adminAPI = {
     api.delete(`/admin/vendors/${vendorId}`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+
+  googleLookup: (url, token) =>
+    api.post('/admin/google-lookup', { url }, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  googleLookupQuota: (token) =>
+    api.get('/admin/google-lookup/quota', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 };
