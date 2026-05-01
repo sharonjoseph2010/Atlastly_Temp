@@ -194,7 +194,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
           <div>
             <h2 className="text-3xl md:text-5xl font-black text-primary leading-tight">
-              The shortlist is <span className="text-primary/40">already around the corner.</span>
+              Local is the point. <span className="text-primary/40">Not the afterthought.</span>
             </h2>
             <p className="mt-6 text-lg text-primary leading-relaxed max-w-xl">
               Your next caterer probably works two blocks away. The florist you'd love to hire is three streets over. We put them on a map, so the people closest to your event stop being invisible.
