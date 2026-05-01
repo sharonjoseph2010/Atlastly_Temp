@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { vendorAPI, discoveryAPI } from '../utils/api';
 import { Map, Marker } from 'react-map-gl/mapbox';
 import VendorMarker from '../components/VendorMarker';
+import CoordinatePaste from '../components/CoordinatePaste';
 import { LogOut, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
@@ -202,13 +203,19 @@ export default function VendorDashboard() {
             </div>
             
             <p className="text-base text-primary mt-3">
-              Drag the marker on the map to set your business location
+              Drag the marker on the map <strong>or paste coordinates below</strong> to set your location
             </p>
-            
-            {/* Coordinates Display */}
-            <div className="flex gap-4 mt-3 text-sm font-mono">
-              <span className="text-primary">Lat: {formData.latitude.toFixed(6)}</span>
-              <span className="text-primary">Lng: {formData.longitude.toFixed(6)}</span>
+
+            {/* Paste "lat, lng" from Google Maps right-click */}
+            <div className="mt-3">
+              <CoordinatePaste
+                latitude={formData.latitude}
+                longitude={formData.longitude}
+                onChange={({ latitude, longitude }) => {
+                  setFormData(prev => ({ ...prev, latitude, longitude }));
+                  setViewState(prev => ({ ...prev, latitude, longitude }));
+                }}
+              />
             </div>
           </div>
         </div>

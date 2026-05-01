@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { adminAPI, discoveryAPI } from '../utils/api';
 import { Map, Marker } from 'react-map-gl/mapbox';
 import BulkImportModal from '../components/BulkImportModal';
+import CoordinatePaste from '../components/CoordinatePaste';
 import { LogOut, Shield, Plus, Edit, Trash2, X, Save, MapPin, Eye, EyeOff, Sparkles, Link as LinkIcon, Upload } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
@@ -616,6 +617,17 @@ export default function AdminDashboard() {
                     <MapPin className="w-5 h-5" strokeWidth={2} />
                     Location *
                   </label>
+                  {/* Quick paste: "lat, lng" from Google Maps right-click */}
+                  <div className="mb-3">
+                    <CoordinatePaste
+                      latitude={formData.latitude}
+                      longitude={formData.longitude}
+                      onChange={({ latitude, longitude }) => {
+                        setFormData(prev => ({ ...prev, latitude, longitude }));
+                        setViewState(prev => ({ ...prev, latitude, longitude }));
+                      }}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4 mb-3">
                     <input
                       name="latitude"
