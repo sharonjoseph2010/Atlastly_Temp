@@ -143,8 +143,8 @@ export default function Landing() {
             {/* Floating vendor pills (sample) */}
             <VendorPill name="Foodlink" category="Catering" icon={Utensils} className="top-12 left-8 md:top-20 md:left-24" />
             <VendorPill name="Leela Palace" category="Venue" icon={MapPin} className="top-32 right-12 md:top-40 md:right-32" />
-            <VendorPill name="Magic Motion" category="Photography" icon={Camera} className="bottom-24 left-16 md:bottom-36 md:left-40" />
-            <VendorPill name="Chacko Decors" category="Decor" icon={Sparkles} className="bottom-10 right-8 md:bottom-20 md:right-24 hidden sm:flex" />
+            <VendorPill name="Frame Studio" category="Photography" icon={Camera} className="bottom-24 left-16 md:bottom-36 md:left-40" />
+            <VendorPill name="Blossom Decor" category="Decor" icon={Sparkles} className="bottom-10 right-8 md:bottom-20 md:right-24 hidden sm:flex" />
 
             {/* Center "you are here" beacon */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -186,9 +186,9 @@ export default function Landing() {
             />
             <VendorPill name="Foodlink" category="Catering" icon={Utensils} className="top-8 left-6" />
             <VendorPill name="Mumbai Caterers" category="Catering" icon={Utensils} className="top-24 right-6" />
-            <VendorPill name="Magic Motion" category="Photography" icon={Camera} className="top-44 left-10" />
+            <VendorPill name="Frame Studio" category="Photography" icon={Camera} className="top-44 left-10" />
             <VendorPill name="Leela" category="Venue" icon={MapPin} className="bottom-20 right-8" />
-            <VendorPill name="Chacko Decors" category="Decor" icon={Sparkles} className="bottom-6 left-16" />
+            <VendorPill name="Blossom Decor" category="Decor" icon={Sparkles} className="bottom-6 left-16" />
           </div>
         </div>
       </section>
