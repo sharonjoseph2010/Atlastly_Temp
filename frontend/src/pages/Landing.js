@@ -127,15 +127,41 @@ export default function Landing() {
       <section className="px-6 md:px-12 pb-16 md:pb-24">
         <div className="max-w-6xl mx-auto">
           <div className="relative rounded-3xl border-2 border-border shadow-hard overflow-hidden bg-gradient-to-br from-secondary/20 via-background to-secondary/10 h-[420px] md:h-[540px]">
-            {/* Faux map grid */}
-            <div
-              className="absolute inset-0 opacity-40"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px)',
-                backgroundSize: '48px 48px',
-              }}
-            />
+            {/* Faux street map — subtle roads + grid */}
+            <svg
+              className="absolute inset-0 w-full h-full opacity-[0.18]"
+              viewBox="0 0 1200 600"
+              preserveAspectRatio="xMidYMid slice"
+              aria-hidden
+            >
+              <defs>
+                <pattern id="mg" width="48" height="48" patternUnits="userSpaceOnUse">
+                  <path d="M 48 0 L 0 0 0 48" fill="none" stroke="currentColor" strokeWidth="0.6" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#mg)" className="text-primary" />
+              {/* "Streets" */}
+              <g stroke="currentColor" strokeLinecap="round" className="text-primary">
+                <line x1="-20" y1="180" x2="1220" y2="140" strokeWidth="6" />
+                <line x1="-20" y1="420" x2="1220" y2="460" strokeWidth="5" />
+                <line x1="280" y1="-20" x2="340" y2="620" strokeWidth="6" />
+                <line x1="820" y1="-20" x2="780" y2="620" strokeWidth="5" />
+                <line x1="100" y1="300" x2="1100" y2="290" strokeWidth="3" />
+                <line x1="540" y1="-20" x2="560" y2="620" strokeWidth="3" />
+              </g>
+              {/* "River" */}
+              <path
+                d="M -20 520 C 200 420, 400 600, 640 500 S 1000 400, 1220 480"
+                fill="none"
+                stroke="#2563eb"
+                strokeOpacity="0.35"
+                strokeWidth="28"
+                strokeLinecap="round"
+              />
+              {/* "Park" blob */}
+              <ellipse cx="970" cy="210" rx="120" ry="70" fill="#22c55e" fillOpacity="0.18" />
+            </svg>
+
             {/* Soft map shapes */}
             <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-[40%] rotate-12" />
             <div className="absolute bottom-10 right-20 w-80 h-80 bg-secondary/20 rounded-[45%] -rotate-6" />
@@ -168,10 +194,10 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
           <div>
             <h2 className="text-3xl md:text-5xl font-black text-primary leading-tight">
-              X marks the opportunity. <span className="text-primary/30">Quite literally.</span>
+              The shortlist is <span className="text-primary/40">already around the corner.</span>
             </h2>
             <p className="mt-6 text-lg text-primary leading-relaxed max-w-xl">
-              Vendors around your venue that you didn't know existed. Not a list to scroll through — a map to explore. Turns out there are many. You just haven't seen them yet.
+              Your next caterer probably works two blocks away. The florist you'd love to hire is three streets over. We put them on a map, so the people closest to your event stop being invisible.
             </p>
           </div>
           {/* Visual: stacked vendor pills on an abstract map */}
@@ -234,10 +260,10 @@ export default function Landing() {
           </div>
           <div className="order-1 md:order-2">
             <h2 className="text-3xl md:text-5xl font-black text-primary leading-tight">
-              Filter signal from noise.
+              Ten checkboxes. <span className="text-primary/40">Zero clutter.</span>
             </h2>
             <p className="mt-6 text-lg text-primary leading-relaxed max-w-xl">
-              Ten categories. One map. Zoom to your neighbourhood, toggle what you need, done. Granular enough to make old vendor directories look ancient.
+              Pick the services you actually care about — venues, caterers, decor, makeup, rentals — and the map quietly fades the rest. No infinite scroll, no filter roulette. Just what you asked for.
             </p>
           </div>
         </div>
