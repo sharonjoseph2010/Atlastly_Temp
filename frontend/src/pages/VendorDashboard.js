@@ -163,7 +163,7 @@ export default function VendorDashboard() {
           <VendorMarker
             vendor={{
               ...formData,
-              vendor_id: user?.userId || 'current',
+              id: user?.userId || 'current',
               category: formData.category || 'Venue'
             }}
             state="pending"

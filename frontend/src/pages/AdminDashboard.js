@@ -143,7 +143,7 @@ export default function AdminDashboard() {
 
     try {
       if (editingVendor) {
-        await adminAPI.fullUpdateVendor(editingVendor.vendor_id, formData, user.token);
+        await adminAPI.fullUpdateVendor(editingVendor.id, formData, user.token);
         setMessage({ type: 'success', text: 'Vendor updated successfully!' });
       } else {
         await adminAPI.createVendor(formData, user.token);
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
       await adminAPI.updateVendor(vendorId, { is_active: !currentStatus }, user.token);
       setVendors(prev =>
         prev.map(v =>
-          v.vendor_id === vendorId ? { ...v, is_active: !currentStatus } : v
+          v.id === vendorId ? { ...v, is_active: !currentStatus } : v
         )
       );
     } catch (error) {
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
 
     try {
       await adminAPI.deleteVendor(vendorId, user.token);
-      setVendors(prev => prev.filter(v => v.vendor_id !== vendorId));
+      setVendors(prev => prev.filter(v => v.id !== vendorId));
       setMessage({ type: 'success', text: 'Vendor deleted successfully' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to delete vendor' });
@@ -272,9 +272,9 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {vendors.map(vendor => (
                 <div
-                  key={vendor.vendor_id}
+                  key={vendor.id}
                   className="bg-surface border-2 border-border rounded-lg p-6 shadow-hard"
-                  data-testid={`vendor-${vendor.vendor_id}`}
+                  data-testid={`vendor-${vendor.id}`}
                 >
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div className="flex-1">
@@ -313,13 +313,13 @@ export default function AdminDashboard() {
 
                     <div className="flex md:flex-col gap-2">
                       <button
-                        onClick={() => handleToggleActive(vendor.vendor_id, vendor.is_active)}
+                        onClick={() => handleToggleActive(vendor.id, vendor.is_active)}
                         className={`flex items-center gap-2 h-12 px-4 rounded-full font-bold text-sm transition-transform active:scale-95 ${
                           vendor.is_active
                             ? 'bg-error/10 border-2 border-error text-error hover:bg-error/20'
                             : 'bg-success/10 border-2 border-success text-success hover:bg-success/20'
                         }`}
-                        data-testid={`toggle-${vendor.vendor_id}`}
+                        data-testid={`toggle-${vendor.id}`}
                       >
                         {vendor.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         {vendor.is_active ? 'Deactivate' : 'Activate'}
@@ -328,16 +328,16 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => openEditForm(vendor)}
                         className="flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-12 px-4 rounded-full font-bold text-sm border-2 border-primary transition-transform active:scale-95"
-                        data-testid={`edit-${vendor.vendor_id}`}
+                        data-testid={`edit-${vendor.id}`}
                       >
                         <Edit className="w-4 h-4" />
                         Edit
                       </button>
                       
                       <button
-                        onClick={() => handleDelete(vendor.vendor_id)}
+                        onClick={() => handleDelete(vendor.id)}
                         className="flex items-center gap-2 bg-error text-error-foreground hover:bg-error/90 h-12 px-4 rounded-full font-bold text-sm transition-transform active:scale-95"
-                        data-testid={`delete-${vendor.vendor_id}`}
+                        data-testid={`delete-${vendor.id}`}
                       >
                         <Trash2 className="w-4 h-4" />
                         Delete

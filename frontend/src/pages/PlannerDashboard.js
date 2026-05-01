@@ -166,7 +166,7 @@ export default function PlannerDashboard() {
         {/* Vendor Markers */}
         {filteredVendors.map(vendor => (
           <Marker
-            key={vendor.vendor_id}
+            key={vendor.id}
             longitude={vendor.longitude}
             latitude={vendor.latitude}
             anchor="bottom"
@@ -174,7 +174,7 @@ export default function PlannerDashboard() {
             <VendorMarker
               vendor={vendor}
               state="confirmed"
-              isSelected={selectedVendor?.vendor_id === vendor.vendor_id}
+              isSelected={selectedVendor?.id === vendor.id}
               onClick={() => handleMarkerClick(vendor)}
             />
           </Marker>
@@ -308,14 +308,14 @@ export default function PlannerDashboard() {
             ) : (
               filteredVendors.map(vendor => (
                 <button
-                  key={vendor.vendor_id}
+                  key={vendor.id}
                   onClick={() => handleMarkerClick(vendor)}
                   className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                    selectedVendor?.vendor_id === vendor.vendor_id
+                    selectedVendor?.id === vendor.id
                       ? 'border-primary bg-secondary/10'
                       : 'border-border bg-white hover:border-primary/50'
                   }`}
-                  data-testid={`list-item-${vendor.vendor_id}`}
+                  data-testid={`list-item-${vendor.id}`}
                 >
                   <div className="flex items-start gap-2 mb-2">
                     <span className="text-xl">{CATEGORY_ICONS[vendor.category] || '📍'}</span>

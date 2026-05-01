@@ -33,7 +33,7 @@ const VendorMarker = React.memo(({ vendor, state = 'confirmed', onClick, isSelec
         transition: 'transform 0.2s ease',
         zIndex: isSelected ? 1000 : 1,
       }}
-      data-testid={`marker-${vendor.vendor_id}`}
+      data-testid={`marker-${vendor.id}`}
     >
       {/* Marker Pin */}
       <svg
